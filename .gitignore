@@ -1,0 +1,5 @@
+.idea
+.env
+target
+.DS_Store
+my-app.iml
