@@ -95,11 +95,13 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
   }
   public static final class ProcessOrder implements Command {
     public int ticketId;
+    public int userId;
     public int quantityDecrementedBy;
     public ActorRef<Object> sender;
 
-    public ProcessOrder(int ticketId, int quantityDecrementedBy, ActorRef<Object> sender) {
+    public ProcessOrder(int ticketId, int userId, int quantityDecrementedBy, ActorRef<Object> sender) {
       this.ticketId = ticketId;
+      this.userId = userId;
       this.quantityDecrementedBy = quantityDecrementedBy;
       this.sender = sender;
     }
