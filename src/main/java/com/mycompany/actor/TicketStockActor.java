@@ -1,7 +1,6 @@
 package com.mycompany.actor;
 
 import akka.actor.typed.*;
-import akka.actor.typed.javadsl.*;
 import akka.persistence.typed.*;
 import akka.persistence.typed.javadsl.*;
 import com.mycompany.actor.TicketStockActor.*;
@@ -13,7 +12,7 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
    *******************************************************************************/
   // public: the only Behavior factory method accessed from outside the actor
   public static Behavior<Command> create(int ticketId){
-    return new TicketStockActor(PersistenceId.ofUniqueId(Integer.toString(ticketId)));
+    return new TicketStockActor(new PersistenceId(Integer.toString(ticketId)));
   }
 
   /********************************************************************************
@@ -41,9 +40,11 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
       .onCommand(ProcessOrder.class, (state, command) -> {
         var decrementedQuantity = state.quantity - command.quantityDecrementedBy;
         if (state.ticketId != command.ticketId) {
-          return Effect().reply(command.sender, "wrong ticket id = " + command.ticketId + ", expected ticket id = " + state.ticketId);
+          System.out.println(String.format("wrong ticket id = %d, expected = %d", command.ticketId, state.ticketId));
+          return Effect().none();
         } else if (decrementedQuantity < 0) {
-          return Effect().reply(command.sender, "you cannot purchase more than available.");
+          System.out.println(String.format("you cannot purchase qty = %d, which is more than available qty = %d", command.quantityDecrementedBy, state.quantity));
+          return Effect().none();
         } else {
           return Effect().persist(new OrderProcessed(command.ticketId, command.quantityDecrementedBy));
         }
