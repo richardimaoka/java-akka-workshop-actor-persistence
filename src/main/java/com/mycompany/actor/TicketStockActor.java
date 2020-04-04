@@ -37,6 +37,7 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
 
     builder
       .forStateType(Available.class)
+      .onCommand(CreateTicketStock.class, (state, command) -> Effect().none().thenRun(() -> System.out.println("CreateTicketStock is not processed when state = Available")))
       .onCommand(ProcessOrder.class, (state, command) -> {
         var decrementedQuantity = state.quantity - command.quantityDecrementedBy;
 
