@@ -17,20 +17,20 @@ public class TicketStockParentActor {
   // private: never accessed from outside the actor
   private static Behavior<Command> behavior(ActorContext<Command> context, State state) {
     return Behaviors.receive(Command.class)
-      .onMessage(CreateTicketStock.class, command -> behavior(context, handleCreateTicketStock(context, state, command)))
-      .onMessage(ProcessOrder.class, command -> behavior(context, handleProcessOrder(state, command)))
+      .onMessage(CreateTicketStock.class, command -> behavior(context, spawnTicketStockChild(context, state, command)))
+      .onMessage(ProcessOrder.class, command -> behavior(context, forwardProcessOrderToChild(state, command)))
       .build();
   }
 
   //side effects and return new state
-  private static State handleCreateTicketStock(ActorContext<Command> context, State state, CreateTicketStock command) {
+  private static State spawnTicketStockChild(ActorContext<Command> context, State state, CreateTicketStock command) {
     var child = context.spawn(TicketStockActor.create(command.ticketId), Integer.toString(command.ticketId));
     child.tell(new TicketStockActor.CreateTicketStock(command.ticketId, command.quantity));
     return state.put(command.ticketId, child);
   }
 
   //side effects and return new state
-  private static State handleProcessOrder(State state, ProcessOrder command) {
+  private static State forwardProcessOrderToChild(State state, ProcessOrder command) {
     var child = state.children.get(command.ticketId);
     if(child == null) {
       System.out.println("bah");
