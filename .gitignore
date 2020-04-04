@@ -2,4 +2,4 @@
 .env
 target
 .DS_Store
-my-app.iml
+java-akka-persistence.iml

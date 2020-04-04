@@ -15,9 +15,6 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
     return new TicketStockActor(PersistenceId.ofUniqueId(Integer.toString(ticketId)));
   }
 
-  /********************************************************************************
-   * Persistence
-   *******************************************************************************/
   private TicketStockActor(PersistenceId persistenceId){
     super(persistenceId);
   }
@@ -27,29 +24,29 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
     return new Initialized();
   }
 
+  /********************************************************************************
+   * Persistence
+   *******************************************************************************/
   @Override
   public CommandHandler<Command, Event, State> commandHandler(){
     var builder = newCommandHandlerBuilder();
 
     builder
       .forStateType(Initialized.class)
-      .onCommand(CreateTicketStock.class, command -> {
-        System.out.println("CreateTicketStock");
-        return Effect().persist(new TicketStockCreated(command.ticketId, command.quantity));
-      });
+      .onCommand(CreateTicketStock.class, command -> Effect().persist(new TicketStockCreated(command.ticketId, command.quantity)));
 
     builder
       .forStateType(Available.class)
       .onCommand(ProcessOrder.class, (state, command) -> {
-        System.out.println("on ProcessOrder");
         var decrementedQuantity = state.quantity - command.quantityDecrementedBy;
+
         if (state.ticketId != command.ticketId) {
-          System.out.println(String.format("wrong ticket id = %d, expected = %d", command.ticketId, state.ticketId));
-          return Effect().none();
+          return Effect().none().thenRun(() -> System.out.println(String.format("wrong ticket id = %d, expected = %d", command.ticketId, state.ticketId)));
         } else if (decrementedQuantity < 0) {
-          System.out.println(String.format("you cannot purchase qty = %d, which is more than available qty = %d", command.quantityDecrementedBy, state.quantity));
-          return Effect().none();
-        } else {
+          return Effect().none().thenRun(() -> System.out.println(String.format("you cannot purchase qty = %d, which is more than available qty = %d", command.quantityDecrementedBy, state.quantity)));
+        } else if (decrementedQuantity == 0) {
+          return Effect().persist(new SoldOut(command.ticketId));
+        } else { //decrementedQuantity > 0
           return Effect().persist(new OrderProcessed(command.ticketId, command.quantityDecrementedBy));
         }
       });
@@ -67,23 +64,12 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
 
     builder
       .forStateType(Initialized.class)
-      .onEvent(TicketStockCreated.class, (state, event) -> {
-        System.out.println("on TicketStockCreated");
-        return new Available(event.ticketId, event.quantity);
-      });
+      .onEvent(TicketStockCreated.class, (state, event) -> new Available(event.ticketId, event.quantity));
 
     builder
       .forStateType(Available.class)
-      .onEvent(OrderProcessed.class, (state, event) -> {
-        var decrementedQuantity = state.quantity - event.quantityDecrementedBy;
-        if (decrementedQuantity < 0) {
-          throw new RuntimeException("Serious Exception!!!! This cannot happen as the command was already validated. Quantity decremented from " + state.quantity + " to " + decrementedQuantity + " by " + event.quantityDecrementedBy);
-        } else if (decrementedQuantity == 0) {
-          return new OutOfStock(state.ticketId);
-        } else {
-          return new Available(state.ticketId, decrementedQuantity);
-        }
-      });
+      .onEvent(OrderProcessed.class, (state, event) -> new Available(state.ticketId, event.newQuantity))
+      .onEvent(SoldOut.class, (state, event) -> new OutOfStock(state.ticketId));
 
     return builder.build();
   }
@@ -127,11 +113,18 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
   }
   public static final class OrderProcessed implements Event {
     public int ticketId;
-    public int quantityDecrementedBy;
+    public int newQuantity;
 
-    public OrderProcessed(int ticketId, int quantityDecrementedBy) {
+    public OrderProcessed(int ticketId, int newQuantity) {
       this.ticketId = ticketId;
-      this.quantityDecrementedBy = quantityDecrementedBy;
+      this.newQuantity = newQuantity;
+    }
+  }
+  public static final class SoldOut implements Event {
+    public int ticketId;
+
+    public SoldOut(int ticketId) {
+      this.ticketId = ticketId;
     }
   }
 
