@@ -11,7 +11,7 @@ public class TicketStockParentActor {
    *******************************************************************************/
   // public: the only Behavior factory method accessed from outside the actor
   public static Behavior<Command> create(){
-    return Behaviors.receive((context, message) -> behavior(context, new State()));
+    return Behaviors.setup(context -> behavior(context, new State()));
   }
 
   // private: never accessed from outside the actor
