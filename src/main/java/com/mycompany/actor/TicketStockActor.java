@@ -12,7 +12,7 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
    *******************************************************************************/
   // public: the only Behavior factory method accessed from outside the actor
   public static Behavior<Command> create(int ticketId){
-    return new TicketStockActor(new PersistenceId(Integer.toString(ticketId)));
+    return new TicketStockActor(PersistenceId.ofUniqueId(Integer.toString(ticketId)));
   }
 
   /********************************************************************************
@@ -33,11 +33,15 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
 
     builder
       .forStateType(Initialized.class)
-      .onCommand(CreateTicketStock.class, command -> Effect().persist(new TicketStockCreated(command.ticketId, command.quantity)));
+      .onCommand(CreateTicketStock.class, command -> {
+        System.out.println("CreateTicketStock");
+        return Effect().persist(new TicketStockCreated(command.ticketId, command.quantity));
+      });
 
     builder
       .forStateType(Available.class)
       .onCommand(ProcessOrder.class, (state, command) -> {
+        System.out.println("on ProcessOrder");
         var decrementedQuantity = state.quantity - command.quantityDecrementedBy;
         if (state.ticketId != command.ticketId) {
           System.out.println(String.format("wrong ticket id = %d, expected = %d", command.ticketId, state.ticketId));
@@ -63,7 +67,10 @@ public class TicketStockActor extends EventSourcedBehavior<Command, Event, State
 
     builder
       .forStateType(Initialized.class)
-      .onEvent(TicketStockCreated.class, (state, event) -> new Available(event.ticketId, event.quantity));
+      .onEvent(TicketStockCreated.class, (state, event) -> {
+        System.out.println("on TicketStockCreated");
+        return new Available(event.ticketId, event.quantity);
+      });
 
     builder
       .forStateType(Available.class)
